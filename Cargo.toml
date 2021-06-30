@@ -6,7 +6,7 @@ edition = "2018"
 homepage = "https://crates.io/crates/ursa"
 keywords = ["cryptography", "zero-knowledge"]
 license = "Apache-2.0"
-name = "ursa1"
+name = "ursa"
 readme = "README.md"
 repository = "https://github.com/hyperledger/ursa"
 version = "0.5.0"
@@ -28,7 +28,11 @@ members = [
     "ursa_sharing",
     "ursa_shortgroupsignatures",
     "ursa_signatures",
-    "libursa"
+]
+
+exclude = [
+    "libursa",
+    "libzmix"
 ]
 
 [features]
