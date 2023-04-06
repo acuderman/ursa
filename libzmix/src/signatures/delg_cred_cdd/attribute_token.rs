@@ -11,7 +11,6 @@ use amcl_wrapper::group_elem::{GroupElement, GroupElementVector};
 use amcl_wrapper::group_elem_g1::{G1LookupTable, G1Vector, G1};
 use amcl_wrapper::group_elem_g2::{G2LookupTable, G2Vector, G2};
 use std::collections::{HashMap, HashSet};
-use std::ops::Mul;
 
 pub type OddLevelAttribute = G1;
 pub type EvenLevelAttribute = G2;
@@ -1371,7 +1370,9 @@ fn binary_scalar_mul_g2(g2: &G2, h2: &G2, r1: &FieldElement, r2: &FieldElement) 
     let mut f_vec = FieldElementVector::with_capacity(2);
     f_vec.push(r1.clone());
     f_vec.push(r2.clone());
-    g2_vec.multi_scalar_mul_const_time(&f_vec).unwrap()
+    g2_vec
+        .multi_scalar_mul_const_time(f_vec.as_slice())
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -2438,7 +2439,7 @@ mod tests {
             )
             .is_err());
 
-        let resp_1 = at_1
+        let _resp_1 = at_1
             .response(&com_1, &l_1_issuer_sk, &c_1, vec![], vec![&l_1_issuer_vk])
             .unwrap();
 

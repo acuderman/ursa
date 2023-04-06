@@ -64,7 +64,16 @@ extern crate glass_pumpkin;
 #[cfg(feature = "int_traits")]
 extern crate int_traits;
 #[cfg(feature = "log")]
-#[cfg_attr(any(feature = "cl", feature = "cl_native", feature = "ffi"), macro_use)]
+#[cfg_attr(
+    any(
+        feature = "cl",
+        feature = "cl_native",
+        feature = "sharing",
+        feature = "sharing_native",
+        feature = "ffi"
+    ),
+    macro_use
+)]
 extern crate log;
 #[cfg(feature = "num-bigint")]
 extern crate num_bigint;
@@ -72,10 +81,12 @@ extern crate num_bigint;
 extern crate num_integer;
 #[cfg(feature = "num-traits")]
 extern crate num_traits;
-#[cfg(feature = "rustlibsecp256k1")]
-extern crate rustlibsecp256k1;
-#[cfg(any(test, feature = "secp256k1"))]
-extern crate secp256k1 as libsecp256k1;
+
+#[cfg(feature = "k256")]
+extern crate k256;
+#[cfg(any(test, feature = "bitcoinsecp256k1"))]
+extern crate bitcoinsecp256k1;
+
 #[cfg(feature = "serde")]
 extern crate serde;
 #[cfg(any(test, feature = "ffi"))]
@@ -98,6 +109,8 @@ extern crate console_error_panic_hook;
 extern crate curve25519_dalek;
 #[cfg(feature = "hex")]
 extern crate hex;
+#[cfg(feature = "hkdf")]
+extern crate hkdf;
 #[cfg(feature = "js-sys")]
 extern crate js_sys;
 #[cfg(feature = "wasm-bindgen")]
@@ -127,10 +140,10 @@ pub mod utils;
 
 #[cfg(any(feature = "bls_bn254", feature = "bls_bn254_asm"))]
 pub mod bls;
-#[cfg(feature = "cl_native")]
+#[cfg(any(feature = "cl_native", feature = "sharing_native"))]
 #[path = "bn/openssl.rs"]
 pub mod bn;
-#[cfg(feature = "cl")]
+#[cfg(any(feature = "cl", feature = "sharing"))]
 #[path = "bn/rust.rs"]
 pub mod bn;
 #[cfg(any(feature = "cl", feature = "cl_native"))]
@@ -151,6 +164,8 @@ pub mod encryption;
     feature = "ecdsa_secp256k1_asm",
     feature = "cl",
     feature = "cl_native",
+    feature = "sharing",
+    feature = "sharing_native",
     feature = "ffi",
     feature = "wasm"
 ))]
@@ -190,6 +205,8 @@ pub mod keys;
 ))]
 #[path = "pair/amcl.rs"]
 pub mod pair;
+#[cfg(any(feature = "sharing", feature = "sharing_native"))]
+pub mod sharing;
 #[cfg(any(
     feature = "ed25519",
     feature = "ed25519_asm",
@@ -201,6 +218,8 @@ pub mod pair;
 pub mod signatures;
 #[cfg(feature = "wasm")]
 pub mod wasm;
+
+pub type CryptoResult<T> = Result<T, CryptoError>;
 
 #[derive(Debug)]
 pub enum CryptoError {
@@ -215,6 +234,8 @@ pub enum CryptoError {
     KeyGenError(String),
     /// Returned when an error occurs during digest generation
     DigestGenError(String),
+    /// A General purpose error message that doesn't fit in any category
+    GeneralError(String),
 }
 
 impl std::fmt::Display for CryptoError {
@@ -225,41 +246,58 @@ impl std::fmt::Display for CryptoError {
             CryptoError::SigningError(s) => write!(f, "SigningError({})", s),
             CryptoError::KeyGenError(s) => write!(f, "KeyGenError({})", s),
             CryptoError::DigestGenError(s) => write!(f, "DigestGenError({})", s),
+            CryptoError::GeneralError(m) => write!(f, "GeneralError({})", m),
         }
     }
 }
 
-#[cfg(feature = "secp256k1")]
-impl From<libsecp256k1::Error> for CryptoError {
-    fn from(error: libsecp256k1::Error) -> CryptoError {
+#[cfg(feature = "bitcoinsecp256k1")]
+impl From<bitcoinsecp256k1::Error> for CryptoError {
+    fn from(error: bitcoinsecp256k1::Error) -> CryptoError {
         match error {
-            libsecp256k1::Error::IncorrectSignature => {
+            bitcoinsecp256k1::Error::IncorrectSignature => {
                 CryptoError::ParseError("Incorrect Signature".to_string())
             }
-            libsecp256k1::Error::InvalidMessage => {
+            bitcoinsecp256k1::Error::InvalidMessage => {
                 CryptoError::ParseError("Invalid Message".to_string())
             }
-            libsecp256k1::Error::InvalidPublicKey => {
+            bitcoinsecp256k1::Error::InvalidPublicKey => {
                 CryptoError::ParseError("Invalid Public Key".to_string())
             }
-            libsecp256k1::Error::InvalidSignature => {
+            bitcoinsecp256k1::Error::InvalidSignature => {
                 CryptoError::ParseError("Invalid Signature".to_string())
             }
-            libsecp256k1::Error::InvalidSecretKey => {
+            bitcoinsecp256k1::Error::InvalidSecretKey => {
                 CryptoError::ParseError("Invalid Secret Key".to_string())
             }
-            libsecp256k1::Error::InvalidRecoveryId => {
+            bitcoinsecp256k1::Error::InvalidRecoveryId => {
                 CryptoError::ParseError("Invalid Recovery Id".to_string())
             }
-            libsecp256k1::Error::InvalidTweak => {
+            bitcoinsecp256k1::Error::InvalidTweak => {
                 CryptoError::ParseError("Invalid Tweak".to_string())
             }
-            libsecp256k1::Error::NotEnoughMemory => {
+            bitcoinsecp256k1::Error::NotEnoughMemory => {
                 CryptoError::ParseError("Not Enough Memory".to_string())
             }
-            libsecp256k1::Error::CallbackPanicked => {
-                CryptoError::ParseError("Callback panicked".to_string())
-            }
         }
+    }
+}
+
+#[cfg(any(
+    feature = "bls_bn254",
+    feature = "bls_bn254_asm",
+    feature = "ecdsa_secp256k1_native",
+    feature = "ecdsa_secp256k1_asm",
+    feature = "cl",
+    feature = "cl_native",
+    feature = "sharing",
+    feature = "sharing_native",
+    feature = "ffi",
+    feature = "wasm"
+))]
+impl From<errors::UrsaCryptoError> for CryptoError {
+    fn from(err: errors::UrsaCryptoError) -> Self {
+        let kind = err.kind();
+        CryptoError::GeneralError(format!("{}", kind))
     }
 }

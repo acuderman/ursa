@@ -17,6 +17,7 @@ use pair::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
+use std::iter::FromIterator;
 
 /// Creates random nonce
 ///
@@ -157,7 +158,8 @@ impl CredentialValue {
 }
 
 /// Values of attributes from `Claim Schema` (must be integers).
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct CredentialValues {
     attrs_values: BTreeMap<String, CredentialValue>,
 }
@@ -383,6 +385,19 @@ pub struct CredentialKeyCorrectnessProof {
     c: BigNumber,
     xz_cap: BigNumber,
     xr_cap: Vec<(String, BigNumber)>,
+}
+
+impl CredentialKeyCorrectnessProof {
+    pub fn try_clone(&self) -> UrsaCryptoResult<CredentialKeyCorrectnessProof> {
+        Ok(CredentialKeyCorrectnessProof {
+            c: self.c.try_clone()?,
+            xz_cap: self.xz_cap.try_clone()?,
+            xr_cap: self.xr_cap.iter().try_fold(vec![], |mut acc, (s, bn)| {
+                acc.push((s.clone(), bn.try_clone()?));
+                UrsaCryptoResult::Ok(acc)
+            })?,
+        })
+    }
 }
 
 /// `Revocation Public Key` is used to verify that credential was'nt revoked by Issuer.
@@ -644,6 +659,15 @@ pub struct SignatureCorrectnessProof {
     c: BigNumber,
 }
 
+impl SignatureCorrectnessProof {
+    pub fn try_clone(&self) -> UrsaCryptoResult<SignatureCorrectnessProof> {
+        Ok(SignatureCorrectnessProof {
+            se: self.se.try_clone()?,
+            c: self.c.try_clone()?,
+        })
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Witness {
@@ -668,12 +692,10 @@ impl Witness {
 
         let mut issued = if issuance_by_default {
             (1..=max_cred_num)
-                .collect::<HashSet<u32>>()
-                .difference(&rev_reg_delta.revoked)
-                .cloned()
-                .collect::<HashSet<u32>>()
+                .filter(|idx| !rev_reg_delta.revoked.contains(idx))
+                .collect::<BTreeSet<u32>>()
         } else {
-            rev_reg_delta.issued.clone()
+            BTreeSet::from_iter(rev_reg_delta.issued.iter().cloned())
         };
 
         issued.remove(&rev_idx);
@@ -765,6 +787,10 @@ impl MasterSecret {
     pub fn value(&self) -> UrsaCryptoResult<BigNumber> {
         Ok(self.ms.try_clone()?)
     }
+
+    pub fn try_clone(&self) -> UrsaCryptoResult<MasterSecret> {
+        Ok(Self { ms: self.value()? })
+    }
 }
 
 /// Blinded Master Secret uses by Issuer in credential creation.
@@ -777,12 +803,32 @@ pub struct BlindedCredentialSecrets {
     committed_attributes: BTreeMap<String, BigNumber>,
 }
 
+impl BlindedCredentialSecrets {
+    pub fn try_clone(&self) -> UrsaCryptoResult<Self> {
+        Ok(Self {
+            u: self.u.try_clone()?,
+            ur: self.ur.clone(),
+            hidden_attributes: self.hidden_attributes.clone(),
+            committed_attributes: clone_bignum_btreemap(&self.committed_attributes)?,
+        })
+    }
+}
+
 /// `CredentialSecretsBlindingFactors` used by Prover for post processing of credentials received from Issuer.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub struct CredentialSecretsBlindingFactors {
     v_prime: BigNumber,
     vr_prime: Option<GroupOrderElement>,
+}
+
+impl CredentialSecretsBlindingFactors {
+    pub fn try_clone(&self) -> UrsaCryptoResult<Self> {
+        Ok(Self {
+            v_prime: self.v_prime.try_clone()?,
+            vr_prime: self.vr_prime.clone(),
+        })
+    }
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -808,9 +854,21 @@ pub struct BlindedCredentialSecretsCorrectnessProof {
     r_caps: BTreeMap<String, BigNumber>, // Blinding values for m_caps
 }
 
+impl BlindedCredentialSecretsCorrectnessProof {
+    pub fn try_clone(&self) -> UrsaCryptoResult<Self> {
+        Ok(Self {
+            c: self.c.try_clone()?,
+            v_dash_cap: self.v_dash_cap.try_clone()?,
+            m_caps: clone_bignum_btreemap(&self.m_caps)?,
+            r_caps: clone_bignum_btreemap(&self.r_caps)?,
+        })
+    }
+}
+
 /// “Sub Proof Request” - input to create a Proof for a credential;
 /// Contains attributes to be revealed and predicates.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct SubProofRequest {
     revealed_attrs: BTreeSet<String>,
     predicates: BTreeSet<Predicate>,
@@ -1293,6 +1351,15 @@ fn clone_bignum_map<K: Clone + Eq + Hash>(
         res.insert(k.clone(), v.try_clone()?);
     }
     Ok(res)
+}
+
+fn clone_bignum_btreemap<K: Clone + Eq + Hash + Ord>(
+    other: &BTreeMap<K, BigNumber>,
+) -> UrsaCryptoResult<BTreeMap<K, BigNumber>> {
+    other.iter().try_fold(BTreeMap::new(), |mut map, (k, v)| {
+        map.insert(k.clone(), v.try_clone()?);
+        UrsaCryptoResult::Ok(map)
+    })
 }
 
 fn clone_credential_value_map<K: Clone + Eq + Ord>(

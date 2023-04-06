@@ -5,7 +5,7 @@ Hyperledger Ursa is Apache 2.0 licensed and accepts contributions via
 
 # Ways to contribute to Ursa
 
-- Bugs or issues: Report problems or defects found to the ursa Rocket.Chat channel [here](https://chat.hyperledger.org/channel/ursa)
+- Bugs or issues: Report problems or defects found to the [ursa Rocket.Chat channel](https://chat.hyperledger.org/channel/ursa)
 - Features and enhancements: Provide expanded capabilities or optimizations
 - Documentation: Improve existing documentation or create new information
 - Tests for events and results:
@@ -25,7 +25,7 @@ When contributing code, please follow these guidelines:
 - Check that the lint tests pass
 
 ## Important
-Use `git rebase origin/master` to limit creating merge commits
+Use `git rebase origin/main` to limit creating merge commits
 
 ## Signed-off-by
 Each commit must include a "Signed-off-by" line in the commit message (`git commit -s`). This sign-off indicates that you agree the commit satifies the [Developer Certificate of Origin](https://developercertificate.org).

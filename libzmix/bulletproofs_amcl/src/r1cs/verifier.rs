@@ -51,7 +51,7 @@ pub struct Verifier<'a> {
     /// when non-randomized variables are committed.
     /// After that, the option will flip to None and additional calls to `randomize_constraints`
     /// will invoke closures immediately.
-    deferred_constraints: Vec<Box<Fn(&mut RandomizingVerifier<'a>) -> Result<(), R1CSError>>>,
+    deferred_constraints: Vec<Box<dyn Fn(&mut RandomizingVerifier<'a>) -> Result<(), R1CSError>>>,
 
     /// Index of a pending multiplier that's not fully assigned yet.
     pending_multiplier: Option<usize>,
@@ -198,53 +198,54 @@ impl<'a> Verifier<'a> {
         (wL, wR, wO, wV, wc)
     }
 
-    #[cfg(test)]
-    fn get_weight_matrices(
-        &self,
-    ) -> (
-        Vec<FieldElementVector>,
-        Vec<FieldElementVector>,
-        Vec<FieldElementVector>,
-        Vec<FieldElementVector>,
-        FieldElement,
-    ) {
-        let n = self.num_vars;
-        let m = self.V.len();
-        let q = self.constraints.len();
-        let mut WL = vec![FieldElementVector::new(n); q];
-        let mut WR = vec![FieldElementVector::new(n); q];
-        let mut WO = vec![FieldElementVector::new(n); q];
-        let mut WV = vec![FieldElementVector::new(m); q];
-        let mut wc = FieldElement::zero();
-
-        for (r, lc) in self.constraints.iter().enumerate() {
-            for (var, coeff) in &lc.terms {
-                match var {
-                    Variable::MultiplierLeft(i) => {
-                        let (i, coeff) = (*i, coeff.clone());
-                        WL[r][i] = coeff;
-                    }
-                    Variable::MultiplierRight(i) => {
-                        let (i, coeff) = (*i, coeff.clone());
-                        WR[r][i] = coeff;
-                    }
-                    Variable::MultiplierOutput(i) => {
-                        let (i, coeff) = (*i, coeff.clone());
-                        WO[r][i] = coeff;
-                    }
-                    Variable::Committed(i) => {
-                        let (i, coeff) = (*i, coeff.clone());
-                        WV[r][i] = coeff;
-                    }
-                    Variable::One() => {
-                        wc -= coeff;
-                    }
-                }
-            }
-        }
-
-        (WL, WR, WO, WV, wc)
-    }
+    // Only used for debugging purposes
+    // #[cfg(test)]
+    // fn get_weight_matrices(
+    //     &self,
+    // ) -> (
+    //     Vec<FieldElementVector>,
+    //     Vec<FieldElementVector>,
+    //     Vec<FieldElementVector>,
+    //     Vec<FieldElementVector>,
+    //     FieldElement,
+    // ) {
+    //     let n = self.num_vars;
+    //     let m = self.V.len();
+    //     let q = self.constraints.len();
+    //     let mut WL = vec![FieldElementVector::new(n); q];
+    //     let mut WR = vec![FieldElementVector::new(n); q];
+    //     let mut WO = vec![FieldElementVector::new(n); q];
+    //     let mut WV = vec![FieldElementVector::new(m); q];
+    //     let mut wc = FieldElement::zero();
+    //
+    //     for (r, lc) in self.constraints.iter().enumerate() {
+    //         for (var, coeff) in &lc.terms {
+    //             match var {
+    //                 Variable::MultiplierLeft(i) => {
+    //                     let (i, coeff) = (*i, coeff.clone());
+    //                     WL[r][i] = coeff;
+    //                 }
+    //                 Variable::MultiplierRight(i) => {
+    //                     let (i, coeff) = (*i, coeff.clone());
+    //                     WR[r][i] = coeff;
+    //                 }
+    //                 Variable::MultiplierOutput(i) => {
+    //                     let (i, coeff) = (*i, coeff.clone());
+    //                     WO[r][i] = coeff;
+    //                 }
+    //                 Variable::Committed(i) => {
+    //                     let (i, coeff) = (*i, coeff.clone());
+    //                     WV[r][i] = coeff;
+    //                 }
+    //                 Variable::One() => {
+    //                     wc -= coeff;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //
+    //     (WL, WR, WO, WV, wc)
+    // }
 
     /// Calls all remembered callbacks with an API that
     /// allows generating challenge scalars.

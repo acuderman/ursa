@@ -1,6 +1,6 @@
 use super::errors::{PSError, PSErrorKind};
 use super::keys::{Sigkey, Verkey};
-use super::{ate_2_pairing, OtherGroupVec, SignatureGroup, SignatureGroupVec};
+use super::{ate_2_pairing, OtherGroupVec, SignatureGroup};
 use crate::amcl_wrapper::group_elem::GroupElementVector;
 use amcl_wrapper::field_elem::{FieldElement, FieldElementVector};
 use amcl_wrapper::group_elem::GroupElement;
@@ -74,7 +74,10 @@ impl Signature {
             Y_m_exps.push(messages[i].clone());
         }
         // Y_m = X_tilde * Y_tilde[1]^m_1 * Y_tilde[2]^m_2 * ...Y_tilde[i]^m_i
-        let Y_m = &vk.X_tilde + &(Y_m_bases.multi_scalar_mul_var_time(&Y_m_exps).unwrap());
+        let Y_m = &vk.X_tilde
+            + &(Y_m_bases
+                .multi_scalar_mul_var_time(Y_m_exps.as_slice())
+                .unwrap());
         // e(sigma_1, Y_m) == e(sigma_2, g2) => e(sigma_1, Y_m) * e(-sigma_2, g2) == 1, if precomputation can be used, then
         // inverse in sigma_2 can be avoided since inverse of g_tilde can be precomputed
         let e = ate_2_pairing(
@@ -126,8 +129,6 @@ impl Signature {
 mod tests {
     use super::super::keys::keygen;
     use super::*;
-    // For benchmarking
-    use std::time::{Duration, Instant};
 
     #[test]
     fn test_signature_all_known_messages() {

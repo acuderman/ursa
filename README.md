@@ -1,7 +1,8 @@
 # HYPERLEDGER URSA
 
-[![Build Status](https://dev.azure.com/Hyperledger/Ursa/_apis/build/status/hyperledger.ursa?branchName=master)](https://dev.azure.com/Hyperledger/Ursa/_build/latest?definitionId=66&branchName=master)
+[![Ursa CI](https://github.com/hyperledger/ursa/workflows/Ursa%20CI/badge.svg)](https://github.com/hyperledger/ursa/actions?query=workflow%3A%22Ursa+CI%22)
 [![Build status](https://ci.appveyor.com/api/projects/status/1htmp82mdvmfjjap?svg=true)](https://ci.appveyor.com/project/hyperledger/ursa)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2447/badge)](https://bestpractices.coreinfrastructure.org/projects/2447)
 
 - [Introduction](#introduction)
 - [Features](#features)
@@ -37,12 +38,51 @@ Ursa is divided into two sub libraries: libursa and libzmix.
 Designed for cryptographic primitives like simple digital signatures, encryption
 schemes, and key exchange.
 
+### Supported Signatures
+
+- ECDSA
+  - Secp256k1
+- EdDSA
+  - Ed25519 (Curve25519 in Twisted Edwards Form)
+- Boneh Lynn Shacham (BLS) Signature
+  - Any Pairing friendly curves
+- Camenisch Lysyanskaya
+  - RSA based
+- Shamir Secret Sharing
+
+### Supported Key Agreement
+
+- ECDH
+  - Secp256k1
+  - X25519 (Curve25519 in Montgomery Form)
+
+### Symmetric Encryption
+
+- AES-CBC
+- AES-GCM
+- XCHACHA20-POLY1305
+
 ## Libzmix
 
 A generic way to create zero-knowledge proofs, proving statements
 about multiple cryptographic building blocks, containing signatures,
 commitments, and verifiable encryption. Libzmix uses many of the building blocks
 found in Libursa.
+
+### Supported Zero Knowledge Proof capabilities
+- Signature Proofs of Knowledge
+- Bulletproofs
+- Range proofs
+- Set Membership
+
+### Supported Signatures
+
+- Boneh Boyen Shacham (BBS+)
+  - Any Pairing friendly curves
+- Pointcheval Saunders
+  - Any pairing friendly curves
+- Groth
+  - Any Pairing friendly curves
 
 # Dependencies
 

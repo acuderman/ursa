@@ -1,12 +1,13 @@
 // Scheme defined in section 6.1 supporting blind signatures
 
 use super::errors::{PSError, PSErrorKind};
-use super::keys::{Params, Sigkey, Verkey};
+use super::keys::{Params, Sigkey};
 use super::signature::Signature;
-use super::{ate_2_pairing, OtherGroup, OtherGroupVec, SignatureGroup, SignatureGroupVec};
+use super::{SignatureGroup, SignatureGroupVec};
 use crate::commitments::pok_vc::{PoKVCError, PoKVCErrorKind};
 use amcl_wrapper::field_elem::{FieldElement, FieldElementVector};
 use amcl_wrapper::group_elem::{GroupElement, GroupElementVector};
+use signatures::ps::SIGNATURE_GROUP_SIZE;
 
 // The public key described in the paper is split into `BlindingKey` and `Verkey`. Only `Verkey` is
 // needed by the verifier. `BlindingKey` is used by the user to request a blind signature.
@@ -37,7 +38,8 @@ impl_PoK_VC!(
     ProverCommittedSignatureGroup,
     ProofSignatureGroup,
     SignatureGroup,
-    SignatureGroupVec
+    SignatureGroupVec,
+    SIGNATURE_GROUP_SIZE
 );
 
 pub struct BlindSignature {}
@@ -68,7 +70,7 @@ impl BlindSignature {
         let (sigma_1, mut sigma_2) = Signature::sign_with_sigma_1_generated_from_given_exp(
             messages, sigkey, &u, offset, &params.g,
         )?;
-        sigma_2 += (commitment * &u);
+        sigma_2 += commitment * &u;
         Ok(Signature { sigma_1, sigma_2 })
     }
 
@@ -97,7 +99,10 @@ impl BlindSignature {
             points.push(blinding_key.Y[offset + i].clone());
         }
 
-        let mut sigma_2 = sigkey_X + &points.multi_scalar_mul_const_time(&scalars).unwrap();
+        let mut sigma_2 = sigkey_X
+            + &points
+                .multi_scalar_mul_const_time(scalars.as_slice())
+                .unwrap();
         sigma_2 += commitment;
         sigma_2 = &sigma_2 * &u;
         Ok(Signature { sigma_1, sigma_2 })
@@ -194,9 +199,9 @@ mod tests {
             // XXX: In production always use multi-scalar multiplication
             let mut comm = SignatureGroup::new();
             for i in 0..count_msgs {
-                comm += (&blinding_key.Y[i] * &msgs[i]);
+                comm += &blinding_key.Y[i] * &msgs[i];
             }
-            comm += (&params.g * &blinding);
+            comm += &params.g * &blinding;
             let sig_blinded = BlindSignature::new(&comm, &[], &sk, &blinding_key, &params).unwrap();
             let sig_unblinded = BlindSignature::unblind(&sig_blinded, &blinding);
             assert!(sig_unblinded.verify(msgs.as_slice(), &vk, &params).unwrap());
@@ -218,9 +223,9 @@ mod tests {
             // XXX: In production always use multi-scalar multiplication
             let mut comm = SignatureGroup::new();
             for i in 0..count_blinded_msgs {
-                comm += (&blinding_key.Y[i] * &msgs[i]);
+                comm += &blinding_key.Y[i] * &msgs[i];
             }
-            comm += (&params.g * &blinding);
+            comm += &params.g * &blinding;
 
             let sig_blinded = BlindSignature::new(
                 &comm,
@@ -251,9 +256,9 @@ mod tests {
         // XXX: In production always use multi-scalar multiplication
         let mut comm = SignatureGroup::new();
         for i in 0..count_blinded_msgs {
-            comm += (&blinding_key.Y[i] * &msgs[i]);
+            comm += &blinding_key.Y[i] * &msgs[i];
         }
-        comm += (&params.g * &blinding);
+        comm += &params.g * &blinding;
 
         // User and signer engage in a proof of knowledge for the above commitment `comm`
         let mut bases = Vec::<SignatureGroup>::new();
@@ -356,9 +361,9 @@ mod tests {
             // XXX: In production always use multi-scalar multiplication
             let mut comm = SignatureGroup::new();
             for i in 0..count_blinded_msgs {
-                comm += (&blinding_key.Y[i] * &msgs[i]);
+                comm += &blinding_key.Y[i] * &msgs[i];
             }
-            comm += (&params.g * &blinding);
+            comm += &params.g * &blinding;
 
             let start = Instant::now();
             let sig_blinded = BlindSignature::new(
@@ -408,9 +413,9 @@ mod tests {
             // XXX: In production always use multi-scalar multiplication
             let mut comm = SignatureGroup::new();
             for i in 0..count_blinded_msgs {
-                comm += (&blinding_key.Y[i] * &msgs[i]);
+                comm += &blinding_key.Y[i] * &msgs[i];
             }
-            comm += (&params.g * &blinding);
+            comm += &params.g * &blinding;
 
             let start = Instant::now();
             let sig_blinded = BlindSignature::new(

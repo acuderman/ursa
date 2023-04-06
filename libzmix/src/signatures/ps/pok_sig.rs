@@ -3,11 +3,11 @@
 use super::errors::{PSError, PSErrorKind};
 use super::keys::Verkey;
 use super::signature::Signature;
-use super::{ate_2_pairing, OtherGroup, OtherGroupVec, SignatureGroup, SignatureGroupVec};
+use super::{ate_2_pairing, OtherGroup, OtherGroupVec};
 use crate::commitments::pok_vc::{PoKVCError, PoKVCErrorKind};
 use amcl_wrapper::field_elem::{FieldElement, FieldElementVector};
 use amcl_wrapper::group_elem::{GroupElement, GroupElementVector};
-use signatures::ps::keys::Params;
+use signatures::ps::{keys::Params, SIGNATURE_GROUP_SIZE};
 use std::collections::{HashMap, HashSet};
 
 // Implement proof of knowledge of committed values in a vector commitment for `SignatureGroup`
@@ -17,7 +17,8 @@ impl_PoK_VC!(
     ProverCommittedOtherGroup,
     ProofOtherGroup,
     OtherGroup,
-    OtherGroupVec
+    OtherGroupVec,
+    SIGNATURE_GROUP_SIZE
 );
 
 /*
@@ -107,7 +108,9 @@ impl PoKOfSignature {
             exponents.push(messages[i].clone());
         }
         // Prove knowledge of m_1, m_2, ... for all hidden m_i and t in J = Y_tilde_1^m_1 * Y_tilde_2^m_2 * ..... * g_tilde^t
-        let J = bases.multi_scalar_mul_const_time(&exponents).unwrap();
+        let J = bases
+            .multi_scalar_mul_const_time(exponents.as_slice())
+            .unwrap();
 
         // For proving knowledge of messages in J.
         // Choose blinding for g_tilde randomly
@@ -233,7 +236,7 @@ impl PoKOfSignatureProof {
                 b.push(vk.Y_tilde[i].clone());
                 e.push(m.clone());
             }
-            j += b.multi_scalar_mul_var_time(&e).unwrap();
+            j += b.multi_scalar_mul_var_time(e.as_slice()).unwrap();
             &j
         };
         // Slight optimization possible by precomputing inverse of g_tilde and storing to avoid inverse of sig.sigma_2
@@ -275,7 +278,9 @@ macro_rules! test_PoK_VC {
         assert!(commiting.get_index($n + 1).is_err());
 
         let committed = commiting.finish();
-        let commitment = gens.multi_scalar_mul_const_time(&secrets).unwrap();
+        let commitment = gens
+            .multi_scalar_mul_const_time(secrets.as_slice())
+            .unwrap();
         let challenge = committed.gen_challenge(commitment.to_bytes());
         let proof = committed.gen_proof(&challenge, secrets.as_slice()).unwrap();
 
@@ -333,6 +338,8 @@ mod tests {
 
     #[test]
     fn test_PoK_sig() {
+        use signatures::ps::SignatureGroup;
+
         let count_msgs = 5;
         let params = Params::new("test".as_bytes());
         let (vk, sk) = keygen(count_msgs, &params);
@@ -456,7 +463,7 @@ mod tests {
             &params,
             msgs.as_slice(),
             Some(blindings_more.as_slice()),
-            revealed_msg_indices.clone()
+            revealed_msg_indices.clone(),
         )
         .is_err());
         let blindings_less =
@@ -467,7 +474,7 @@ mod tests {
             &params,
             msgs.as_slice(),
             Some(blindings_less.as_slice()),
-            revealed_msg_indices.clone()
+            revealed_msg_indices.clone(),
         )
         .is_err());
     }
@@ -487,7 +494,7 @@ mod tests {
             &params,
             bigger_msgs.as_slice(),
             None,
-            HashSet::new()
+            HashSet::new(),
         )
         .is_err());
     }
