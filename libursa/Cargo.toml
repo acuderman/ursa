@@ -1,6 +1,6 @@
 [package]
 name = "ursa"
-version = "0.3.5"
+version = "0.3.6"
 authors = ["Hyperledger Ursa Contributors"]
 description = "This is the shared crypto library for Hyperledger components."
 license = "Apache-2.0"
@@ -33,9 +33,6 @@ include = [
 name = "ursa"
 path = "src/lib.rs"
 crate-type = ["staticlib", "rlib", "cdylib"]
-
-[profile.release]
-lto = true
 
 [[bin]]
 name = "test_aescbc"
@@ -72,21 +69,21 @@ asm = ["encryption_asm", "ffi", "hashes_asm", "serde", "signatures_asm"]
 benchmarkaescbc = ["openssl"]
 benchmarkaesgcm = ["openssl"]
 benchmarked25519 = ["libsodium-ffi"]
-benchmarksecp256k1 = ["secp256k1", "openssl"]
+benchmarksecp256k1 = ["bitcoinsecp256k1", "openssl"]
 benchmarkxchacha20poly1305 = ["libsodium-ffi"]
-bls_bls12381 = ["amcl_wrapper", "hex", "zeroize"]
+bls_bls12381 = ["amcl_wrapper", "hex", "hkdf", "zeroize"]
 bls_bn254 = ["amcl", "failure", "log", "rand", "sha2/std", "sha3"]
 bls_bn254_asm = ["amcl", "failure", "log", "rand", "sha2/asm", "sha3"]
 cl = ["amcl", "failure", "glass_pumpkin", "int_traits", "lazy_static", "log", "num-bigint", "num-integer", "num-traits", "rand", "sha2/std", "time"]
 cl_native = ["amcl", "failure", "int_traits", "lazy_static", "log", "openssl", "rand", "time"]
 chacha20poly1305 = ["aead", "hex", "rand", "rustchacha20poly1305", "zeroize"]
 chacha20poly1305_native = ["aead", "hex", "lazy_static", "libsodium-ffi", "rand", "zeroize"]
-ecdh_secp256k1 = ["amcl", "arrayref", "failure", "hex", "rand", "rand_chacha", "rustlibsecp256k1", "sha2/std", "zeroize"]
-ecdh_secp256k1_native = ["arrayref", "failure", "hex", "log", "rand", "secp256k1", "rand_chacha", "sha2/std", "zeroize"]
-ecdh_secp256k1_asm = ["arrayref", "failure", "hex", "log", "rand", "secp256k1", "rand_chacha", "sha2/asm", "zeroize"]
-ecdsa_secp256k1 = ["amcl", "arrayref", "failure", "hex", "rand", "rand_chacha", "rustlibsecp256k1", "sha2/std", "zeroize"]
-ecdsa_secp256k1_native = ["arrayref", "failure", "hex", "log", "rand", "secp256k1", "rand_chacha", "sha2/std", "zeroize"]
-ecdsa_secp256k1_asm = ["arrayref", "failure", "hex", "log", "rand", "secp256k1", "rand_chacha", "sha2/asm", "zeroize"]
+ecdh_secp256k1 = ["amcl", "arrayref", "failure", "hex", "rand", "rand_chacha", "k256", "sha2/std", "zeroize"]
+ecdh_secp256k1_native = ["arrayref", "failure", "hex", "log", "rand", "bitcoinsecp256k1", "rand_chacha", "sha2/std", "zeroize"]
+ecdh_secp256k1_asm = ["arrayref", "failure", "hex", "log", "rand", "bitcoinsecp256k1", "rand_chacha", "sha2/asm", "zeroize"]
+ecdsa_secp256k1 = ["amcl", "arrayref", "failure", "hex", "rand", "rand_chacha", "k256", "sha2/std", "zeroize"]
+ecdsa_secp256k1_native = ["arrayref", "failure", "hex", "log", "rand", "bitcoinsecp256k1", "rand_chacha", "sha2/std", "zeroize"]
+ecdsa_secp256k1_asm = ["arrayref", "failure", "hex", "log", "rand", "bitcoinsecp256k1", "rand_chacha", "sha2/asm", "zeroize"]
 ed25519 = ["arrayref", "ed25519-dalek/std", "ed25519-dalek/u64_backend", "hex", "rand", "rand_chacha", "sha2/std", "zeroize"]
 ed25519_asm = ["arrayref", "ed25519-dalek/nightly", "ed25519-dalek/simd_backend", "hex", "rand", "rand_chacha", "sha2/asm", "zeroize"]
 encryption = ["aescbc", "aesgcm", "chacha20poly1305"]
@@ -111,23 +108,24 @@ x25519_asm = ["arrayref", "curve25519-dalek/nightly", "curve25519-dalek/avx2_bac
 
 [dependencies]
 aead = { version = "0.3", optional = true }
-aes = { version = "0.4", optional = true }
-aes-gcm = { version = "0.6.0", optional = true }
-amcl = { version = "0.2",  optional = true, default-features = false, features = ["bn254", "secp256k1"]}
+aes = { version = "0.6", optional = true }
+aes-gcm = { version = "0.8", optional = true }
+amcl = { version = "0.2",  optional = true, default-features = false, features = ["bn254"]}
 amcl_wrapper = {version = "0.4.0", features = ["bls381"], optional = true }
 arrayref = { version = "0.3.5", optional = true }
-blake2 = { version = "0.8", default-features = false, optional = true }
-block-modes = { version = "0.4", optional = true }
-block-padding = { version = "0.1", optional = true }
+blake2 = { version = "0.9", default-features = false, optional = true }
+block-modes = { version = "0.7", optional = true }
+block-padding = { version = "0.2", optional = true }
 clear_on_drop = { version = "0.2.4", optional = true }
 console_error_panic_hook = { version = "0.1.5", optional = true }
-curve25519-dalek = { version = "2.0.0", default-features = false, optional = true }
-ed25519-dalek = { version = "=1.0.0-pre.3", default-features = false, optional = true }
+curve25519-dalek = { version = "3.1", default-features = false, optional = true }
+ed25519-dalek = { version = "1.0", default-features = false, optional = true }
 env_logger = { version = "0.7.0", optional = true }
 failure = { version = "0.1.6", optional = true }
 ffi-support = { version = "0.4", optional = true }
 glass_pumpkin = { version = "0.4", optional = true }
 hex = { version = "0.4.0", optional = true }
+hkdf = { version = "0.8", optional = true }
 hmac = { version = "0.7", optional = true }
 int_traits = { version = "0.1.1", optional = true }
 js-sys = { version = "0.3.13", optional = true }
@@ -139,29 +137,28 @@ num-integer = { version = "=0.1.42", optional = true }
 num-traits = { version = "=0.2.11", optional = true }
 openssl = { version = "0.10", optional = true }
 # TODO: Find out if the wasm-bindgen feature can be made dependent on our own wasm feature
-rand = { version = "=0.7", features = ["wasm-bindgen"], optional = true }
+rand = { version = "0.7", features = ["wasm-bindgen"], optional = true }
 rand_chacha = { version = "=0.2.1", optional = true }
-rustchacha20poly1305 = { version = "0.5.0", package = "chacha20poly1305", optional = true }
-rustlibsecp256k1 = { version = "0.3", package = "libsecp256k1", optional = true }
-secp256k1 = { version = "0.17", optional = true, features = ["rand", "serde"]}
+rustchacha20poly1305 = { version = "0.7", package = "chacha20poly1305", optional = true }
+k256 = { version = "0.7", optional = true, features = ["ecdh", "ecdsa", "sha256"]}
+bitcoinsecp256k1 = { version = "0.19", package = "secp256k1", optional = true, features = ["rand", "serde"]}
 serde = { version = "1.0", features = ["derive"],  optional = true}
 serde_json = { version = "1.0", optional = true }
 sha2 = { version = "0.8", default-features = false, optional = true }
 sha3 = { version = "0.8", optional = true }
-subtle = { version = "2.2.1", optional = true }
+subtle = { version = "2.3", optional = true }
 time = { version = "0.1", optional = true }
 wasm-bindgen = { version = "0.2", optional = true, features = ["serde-serialize"] }
-x25519-dalek = { version = "=0.6.0", optional = true, default-features = false }
+x25519-dalek = { version = "1.1", optional = true, default-features = false }
 zeroize = { version = "1.1", features = ["zeroize_derive"], optional =  true }
-hkdf = "0.8"
 
 [dev-dependencies]
 bytebuffer-rs = "0.3.0"
 criterion = "0.3"
 libsodium-ffi = "0.2.2"
 openssl = "0.10"
-rustlibsecp256k1 = { version = "0.3", package = "libsecp256k1" }
-secp256k1 = "0.17"
+k256 = { version = "0.7"}
+bitcoinsecp256k1 = { version = "0.19", package = "secp256k1"}
 serde_json = "1.0"
 
 [[bench]]

@@ -3,7 +3,7 @@ pub const ALGORITHM_NAME: &str = "ED25519_SHA2_512";
 use super::{KeyGenOption, SignatureScheme};
 #[cfg(any(feature = "x25519", feature = "x25519_asm"))]
 use ed25519_dalek::SecretKey as SK;
-use ed25519_dalek::{Keypair, PublicKey as PK, Signature};
+use ed25519_dalek::{Keypair, PublicKey as PK, Signature, Signer, Verifier};
 pub use ed25519_dalek::{
     EXPANDED_SECRET_KEY_LENGTH as PRIVATE_KEY_SIZE, PUBLIC_KEY_LENGTH as PUBLIC_KEY_SIZE,
     SIGNATURE_LENGTH as SIGNATURE_SIZE,
@@ -13,6 +13,7 @@ use rand::rngs::OsRng;
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use sha2::Digest;
+use std::convert::TryFrom;
 use zeroize::Zeroize;
 
 use CryptoError;
@@ -147,7 +148,7 @@ impl SignatureScheme for Ed25519Sha512 {
     ) -> Result<bool, CryptoError> {
         let p = PK::from_bytes(&pk[..]).map_err(|e| CryptoError::ParseError(e.to_string()))?;
         let s =
-            Signature::from_bytes(signature).map_err(|e| CryptoError::ParseError(e.to_string()))?;
+            Signature::try_from(signature).map_err(|e| CryptoError::ParseError(e.to_string()))?;
         p.verify(message, &s)
             .map_err(|e| CryptoError::SigningError(e.to_string()))?;
         Ok(true)
@@ -261,7 +262,7 @@ mod test {
                 assert!(result.is_ok());
                 assert!(result.unwrap());
             }
-            Err(e) => assert!(false, e),
+            Err(e) => assert!(false, "{}", e),
         }
         let signer = Signer::new(&scheme, &s);
         match signer.sign(&MESSAGE_1) {
@@ -270,7 +271,7 @@ mod test {
                 assert!(result.is_ok());
                 assert!(result.unwrap());
             }
-            Err(er) => assert!(false, er),
+            Err(er) => assert!(false, "{}", er),
         }
     }
 
